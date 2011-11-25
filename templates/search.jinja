@@ -1,0 +1,20 @@
+<html>
+<head>
+<link rel=stylesheet href="/static/search.css" type="text/css" media=screen/>
+<title>MarkupServe - Search Results</title>
+</head>
+<body>
+<h1>Search results for: {{ terms }}</h1>
+
+{% for filename, lines in results.items() %}
+<p>
+<a href="/view/{{filename}}">{{filename}}</a>
+<ul>
+{% for line in lines %}
+<li>{{ line }}</li>
+{% endfor %}
+</ul>
+</p>
+{% endfor %}
+</body>
+</html>

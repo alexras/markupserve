@@ -114,6 +114,43 @@ def serve_static_file(filename):
 
     return static_file(filename, root=static_root)
 
+@route("/search")
+def search():
+    search_terms = request.GET.dict["terms"][0]
+
+    document_root = os.path.expanduser(config.get(
+            "markupserve", "document_root"))
+
+    command = shlex.split('grep -Hir "%s" %s' % (search_terms, document_root))
+
+    grep_process = subprocess.Popen(command, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+
+    (output, error) = grep_process.communicate()
+
+    if grep_process.returncode != 0:
+        abort(500, "Search failed with error %d: %s %s" % (
+                grep_process.returncode, output, error))
+
+    results = {}
+
+    for match in output.split('\n'):
+        if len(match) == 0:
+            continue
+
+        (filename, delim, line_text) = match.partition(':')
+
+        filename = os.path.relpath(filename, document_root)
+
+        if filename not in results:
+            results[filename] = []
+
+
+        results[filename].append(line_text.decode("utf-8"))
+
+    template = jinja_env.get_template("search.jinja")
+    return template.render(terms = search_terms, results = results)
+
 @route("/view/:path#.+#")
 def view(path):
     """
@@ -193,5 +230,7 @@ for suffix in config.get("markupserve", "markup_suffixes").split(','):
     markup_file_suffixes.add(suffix.strip())
 
 port = config.getint("markupserve", "port")
+
+debug(True)
 
 run(host='localhost', port=port)
