@@ -140,6 +140,11 @@ def search():
 
         (filename, delim, line_text) = match.partition(':')
 
+        file_extension = os.path.splitext(filename)[1]
+
+        if file_extension not in markup_file_suffixes:
+            continue
+
         filename = os.path.relpath(filename, document_root)
 
         if filename not in results:
