@@ -1,0 +1,30 @@
+<html>
+<head>
+        <title>MarkupServe - {{ path }}</title>
+        <link rel=stylesheet href="/static/dir_style.css" type="text/css" media=screen/>
+</head>
+<body>
+
+{% macro sortable_header(sort_key, label) -%}
+   <th><a href="{{ page_uri }}?sorted_by={{ sort_key }}{%if sort_key == sorted_by -%}&reverse={{ "%d" % (not reverse) }}{%- endif %}">{{ label }}</a></th>
+{%- endmacro %}
+
+<h1>{{ path }}</h1>
+
+<table>
+<tr>
+        <td></td>
+        {{ sortable_header("name", "Name") }}
+        {{ sortable_header("last_modified", "Last Modified") }}
+</tr>
+
+{% for file in files %}
+<tr>
+        <td class="icon"><img src="{{ file["icon"] }}"/></td>
+        <td><a href="{{ file["link"] }}">{{ file["name"] }}</a></td>
+        <td>{{ file["last_modified"] }}</td>
+{% endfor %}
+</table>
+
+</body>
+</html>

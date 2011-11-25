@@ -1,0 +1,15 @@
+* {
+    font-family: Helvetica;
+}
+
+td {
+    padding-right: 20px;
+}
+
+td.icon {
+    padding-right: 10px;
+}
+
+tr:nth-child(2n+3) {
+    background: #eee;
+}
