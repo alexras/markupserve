@@ -128,9 +128,9 @@ def search():
 
     (output, error) = grep_process.communicate()
 
-    if grep_process.returncode != 0:
-        abort(500, "Search failed with error %d: %s %s" % (
-                grep_process.returncode, output, error))
+    if grep_process.returncode not in [0,1]:
+        abort(500, "'%s' failed with error %d: %s %s" % (
+                command, grep_process.returncode, output, error))
 
     results = {}
 

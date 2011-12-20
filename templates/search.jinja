@@ -6,6 +6,9 @@
 <body>
 <h1>Search results for: {{ terms }}</h1>
 
+{% if results|length == 0 %}
+<p>Not found</p>
+{% else %}
 {% for filename, lines in results.items() %}
 <p>
 <a href="/view/{{filename}}">{{filename}}</a>
@@ -16,5 +19,6 @@
 </ul>
 </p>
 {% endfor %}
+{% endif %}
 </body>
 </html>
