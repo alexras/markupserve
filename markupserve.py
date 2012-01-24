@@ -58,8 +58,6 @@ def view_dir(path, parent_path, root, sorted_by, reverse):
     if sorted_by is not None:
         listable_files.sort(key=lambda x: x[sorted_by], reverse = reverse)
 
-    print path, parent_path, root
-
     if parent_path != None:
         parent_path_info = {
             "name" : "Parent Directory",
