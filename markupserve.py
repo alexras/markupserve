@@ -26,6 +26,9 @@ def last_modified_string(file_path):
     return time.strftime("%Y/%m/%d %I:%M:%S %p", time.localtime(
             os.path.getmtime(file_path)))
 
+def file_path_to_server_path(path, root):
+    return os.path.join("/view", os.path.relpath(path, root))
+
 def view_dir(path, parent_path, root, sorted_by, reverse):
     files = os.listdir(path)
 
@@ -46,8 +49,7 @@ def view_dir(path, parent_path, root, sorted_by, reverse):
         else:
             file_info["icon"] = "/static/file.png"
 
-        file_info["link"] = os.path.join(
-            "/view", os.path.relpath(file_path, root))
+        file_info["link"] = file_path_to_server_path(file_path, root)
 
         file_info["last_modified"] = last_modified_string(file_path)
 
@@ -56,10 +58,12 @@ def view_dir(path, parent_path, root, sorted_by, reverse):
     if sorted_by is not None:
         listable_files.sort(key=lambda x: x[sorted_by], reverse = reverse)
 
+    print path, parent_path, root
+
     if parent_path != None:
         parent_path_info = {
             "name" : "Parent Directory",
-            "link" : os.path.relpath(parent_path, root),
+            "link" : file_path_to_server_path(parent_path, root),
             "last_modified" : last_modified_string(parent_path),
             "icon" : "/static/up.png"
             }
@@ -68,7 +72,7 @@ def view_dir(path, parent_path, root, sorted_by, reverse):
 
     template = jinja_env.get_template("dir.jinja")
 
-    page_uri = os.path.join("/view", os.path.relpath(path, root))
+    page_uri = file_path_to_server_path(path, root)
 
     return template.render(files = listable_files, path = path,
                            page_uri = page_uri, sorted_by = sorted_by,
