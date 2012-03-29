@@ -1,8 +1,13 @@
 body {
     color: #222;
     font: normal normal 400 100%/1.5em georgia,serif;
-    margin: 3em auto;
+}
+
+div.main {
+    border: 2px solid #cccccc;
+    padding: 3em;
     width: 50em;
+    margin: 3em auto;
 }
 
 a:link {
@@ -30,7 +35,8 @@ code {
 
 img {
     display: block;
-    margin: 1.5em auto
+    margin: 1.5em auto;
+    max-width: 100%;
 }
 
 pre {
