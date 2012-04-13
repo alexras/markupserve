@@ -1,0 +1,48 @@
+<html>
+<head>
+        <title>MarkupServe - {{ path }}</title>
+        <link rel=stylesheet href="/static/calendar_style.css" type="text/css" media=screen/>
+</head>
+<body>
+
+<h1>{{ path }}</h1>
+
+<p><a href="{{ parent_path }}">Parent Directory</a></p>
+
+{% for year, year_calendars in calendars|dictsort(false, "key")|reverse %}
+<div class="year">
+<h2>{{ year }}</h2>
+{% for month, calendar in year_calendars|dictsort(false, "key") %}
+  <div class="month">
+  <h3>{{ month_names[month] }}</h3>
+  <table>
+    <tr>
+      <th>S</th>
+      <th>M</th>
+      <th>T</th>
+      <th>W</th>
+      <th>T</th>
+      <th>F</th>
+      <th>S</th>
+    </tr>
+{% for calendar_row in calendar %}
+    <tr>
+{% for calendar_cell in calendar_row %}
+      <td class="{{calendar_cell["style_class"]}}">
+{% if "link" in calendar_cell %}
+        <a href="{{ calendar_cell["link"] }}">{{calendar_cell["day_of_month"]}}</a>
+{% else %}
+        {{calendar_cell["day_of_month"]}}
+{% endif %}
+      </td>
+{% endfor %}
+    </tr>
+{% endfor %}
+  </table>
+  </div>
+{% endfor %}
+</div>
+{% endfor %}
+
+</body>
+</html>

@@ -8,6 +8,13 @@ import jinja2
 import subprocess
 import shlex
 import time
+import calendar
+import re
+import pprint
+import itertools
+import datetime
+
+DIR_CONFIG_FILE_NAME = ".markupserve_dir_config"
 
 config = ConfigParser.ConfigParser()
 
@@ -28,6 +35,91 @@ def last_modified_string(file_path):
 
 def file_path_to_server_path(path, root):
     return os.path.join("/view", os.path.relpath(path, root))
+
+def view_calendar(path, parent_path, root, config):
+    files = os.listdir(path)
+
+    try:
+        file_prefix = config.get("style", "file_prefix").strip('"')
+    except ConfigParser.Error:
+        file_prefix = ""
+
+    try:
+        file_suffix = config.get("style", "file_suffix").strip('"')
+    except ConfigParser.Error:
+        file_suffix = ""
+
+    filename_regex = re.compile("%s([0-9]+)-([0-9]+)-([0-9]+)%s" %
+                                (file_prefix, file_suffix))
+
+    def regex_match_function(x):
+        match = filename_regex.match(x)
+
+        if match is not None:
+            return match.groups()
+        else:
+            return None
+
+    file_dates = [match for match in map(regex_match_function, files)]
+
+    files_by_month = {}
+
+    for filename, date in itertools.izip(files, file_dates):
+        if date is None:
+            continue
+
+        file_path = os.path.join(path, filename)
+        year, month, day = map(int, date)
+        date = datetime.date(year, month, day)
+
+        year_and_month = (year, month)
+
+        if year_and_month not in files_by_month:
+            files_by_month[year_and_month] = {}
+
+        files_by_month[year_and_month][date] = file_path
+
+    calendars = {}
+
+    cal = calendar.Calendar()
+    # Render weeks beginning on Sunday
+    cal.setfirstweekday(6)
+
+    for year_and_month, dates in files_by_month.items():
+        year, month = year_and_month
+
+        if year not in calendars:
+            calendars[year] = {}
+
+        calendars[year][month] = []
+
+        for week in cal.monthdatescalendar(year, month):
+            week_list = []
+            for date in week:
+                date_info = {}
+
+                if date in files_by_month[year_and_month]:
+                    date_info["link"] = file_path_to_server_path(
+                        files_by_month[year_and_month][date], root)
+
+                date_info["day_of_month"] = date.day
+
+                if date.month == month:
+                    date_info["style_class"] = "cur_month_date"
+                else:
+                    date_info["style_class"] = "adjacent_month_date"
+
+                week_list.append(date_info)
+
+            calendars[year][month].append(week_list)
+
+    template = jinja_env.get_template("calendar.jinja")
+
+    return template.render(
+        calendars = calendars,
+        month_names = calendar.month_name,
+        path = path,
+        parent_path = file_path_to_server_path(parent_path, root))
 
 def view_dir(path, parent_path, root, sorted_by, reverse):
     files = os.listdir(path)
@@ -185,6 +277,29 @@ def view(path):
             parent_path = os.path.abspath(absolute_path + "/" +  os.pardir)
         else:
             parent_path = None
+
+        markupserve_dir_config_file = os.path.join(absolute_path,
+                                                   DIR_CONFIG_FILE_NAME)
+
+        if os.path.exists(markupserve_dir_config_file):
+            dir_config = ConfigParser.ConfigParser()
+            parsed_files = dir_config.read([markupserve_dir_config_file])
+
+            if len(parsed_files) != 1:
+                abort(500, "Can't parse dir config file '%s'" %
+                      (markupserve_dir_config_file))
+
+            try:
+                dir_style = dir_config.get("style", "name")
+            except ConfigParser.Error, e:
+                abort(500, "Can't find option ('style', 'name') in directory "
+                      "config")
+
+            if dir_style == "calendar":
+                return view_calendar(absolute_path, parent_path, document_root,
+                                     dir_config)
+        else:
+            print "WAT %s" % (markupserve_dir_config_file)
 
         return view_dir(absolute_path, parent_path, document_root,
                         sorted_by, reverse)

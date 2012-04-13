@@ -1,0 +1,33 @@
+body {
+    margin: 2em;
+}
+
+.adjacent_month_date{
+    color: #cccccc;
+}
+
+* {
+    font-family: Helvetica;
+}
+
+div.month {
+    width: 180px;
+    height: 220px;
+    float: left;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+div.month h3 {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+div.month table {
+    margin: 0 auto;
+    text-align: center;
+}
+
+div.year {
+    clear: both;
+}
