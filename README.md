@@ -34,6 +34,22 @@ Here's an example minimal configuration file:
 
 You can hack the CSS for directory listings and converted files by editing `static/dir_style.css` and `static/file_style.css`, resp.
 
+## Views
+
+"Views" of directories can be configured on a per-directory basis by adding a file named `.markupserve_dir_config` to a directory. A list of supported views and information about their settings is given below.
+
+### Calendar View
+If you have a bunch of files of the form `<common prefix><year>-<month>-<day><common suffix>` in a directory, you can organize them into a calendar by month and year. To do this, create a `.markupserve_dir_config` file with the following contents:
+
+```
+[style]
+name: calendar
+file_prefix: <your common prefix here>
+file_suffix: <your common suffix here>
+```
+
+For example, I've got a bunch of research logs in a folder called "Research Logs". The logs are consistently named as "Research Log YYYY-MM-DD.md". In my case, `file_prefix` is "Research Log " and `file_suffix` is ".md".
+
 ## Acknowledgments
 
 The icons used for file navigation are from [The Crystal Project][crystal-project]. The default CSS used to render files is [iAWriterCSS][moritzz-iAWriterCSS], which is a condensed versions of the styles used in [iA Writer][ia-writer].
