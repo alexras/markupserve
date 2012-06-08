@@ -4,10 +4,8 @@ body {
 }
 
 div.main {
-    border: 2px solid #cccccc;
     padding: 3em;
-    width: 50em;
-    margin: 3em auto;
+    margin: 0 auto;
 }
 
 a:link {
@@ -35,14 +33,14 @@ code {
 
 img {
     display: block;
-    margin: 1.5em auto;
-    max-width: 100%;
+    max-width: 1024px;
 }
 
 pre {
     display: block;
     font: normal normal 87.5%/1.71428571em monospace,sans-serif;
-    margin: 1.71428571em
+    overflow: auto;
+    padding: 1em;
 }
 
 h1,h2,h3,h4,h5,h6 {
@@ -84,7 +82,6 @@ ol ol,ol ul,ul ol,ul ul {
 table {
     border-collapse: collapse;
     margin: 1.5em 0;
-    width: 100%
 }
 
 td,th {
