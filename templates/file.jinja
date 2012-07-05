@@ -4,9 +4,23 @@
 <link rel=stylesheet href="/static/file_style.css" type="text/css" media=screen/>
 </head>
 <body>
+{% if prev or next %}
+<div class="topbar">
+
+{% if prev  %}
+<span class="prev">←  <a href="{{ prev["link"] }}">{{ prev["name"] }}</a></span>
+{% endif %}
+
+{% if next  %}
+<span class="next"><a href="{{ next["link"] }}">{{ next["name"] }}</a>  →</span>
+{% endif %}
+</div>
+{% endif %}
 <div class="main">
+
 <h1>{{filename}}</h1>
 <p><a href="{{ parent }}">Parent Directory</a></p>
+
 {{content}}
 </div>
 </body>

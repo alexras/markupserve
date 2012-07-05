@@ -171,8 +171,36 @@ def view_dir(path, parent_path, root, sorted_by, reverse):
 def view_file(path, root):
     file_suffix = os.path.splitext(path)[1]
 
-    if file_suffix not in markup_file_suffixes:
+    parent_dir = os.path.abspath(os.path.join(path, os.pardir))
 
+    files_in_dir = filter(
+        lambda x: os.path.splitext(x)[1] != ".resources" and x[0] != '.',
+        os.listdir(parent_dir))
+
+    files_in_dir.sort()
+
+    file_index = files_in_dir.index(os.path.relpath(path, parent_dir))
+
+    def make_path_struct(filename):
+        path_dict = {
+            "name" : os.path.splitext(filename)[0],
+            "link" : '/'.join(("/view", os.path.relpath(parent_dir, root),
+                               filename))
+            }
+
+        return path_dict
+
+    if file_index > 0:
+        prev_path = make_path_struct(files_in_dir[file_index - 1])
+    else:
+        prev_path = None
+
+    if file_index < len(files_in_dir) - 1:
+        next_path = make_path_struct(files_in_dir[file_index + 1])
+    else:
+        next_path = None
+
+    if file_suffix not in markup_file_suffixes:
         return static_file(path, root="/")
 
     converter_bin = os.path.abspath(config.get(
@@ -193,14 +221,13 @@ def view_file(path, root):
 
     filename = os.path.splitext(os.path.basename(path))[0]
 
-    parent_path = "/view/" + os.path.relpath(
-        os.path.join(path, os.pardir), root)
+    parent_path = "/view/" + os.path.relpath(parent_dir, root)
 
     # Get rid of any Unicode garbage that Jinja might choke on
     output = output.decode("utf-8")
 
     return template.render(filename=filename, content=output,
-                           parent=parent_path)
+                           parent=parent_path, prev=prev_path, next=next_path)
 
 @route("/static/:filename")
 def serve_static_file(filename):
@@ -298,8 +325,6 @@ def view(path):
             if dir_style == "calendar":
                 return view_calendar(absolute_path, parent_path, document_root,
                                      dir_config)
-        else:
-            print "WAT %s" % (markupserve_dir_config_file)
 
         return view_dir(absolute_path, parent_path, document_root,
                         sorted_by, reverse)
