@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from bottle import run, debug, route, abort, redirect, request, static_file
+import StringIO
 import shlex
 import collections
 import whoosh
@@ -306,9 +307,10 @@ def index_search(search_terms, document_root):
         query_results = searcher.search(query, limit=None)
 
         for result in query_results:
-            filename = result["path"].decode("utf-8")
+            filename = result["path"].decode("utf-8").decode("unicode-escape")
             results[filename].append(
-                result.highlights("content").decode("utf-8"))
+                result.highlights("content").decode("utf-8")
+                .decode("unicode-escape"))
 
     return results
 
@@ -390,30 +392,94 @@ def view_index():
 def hash_file_contents(contents):
     return hashlib.md5(contents).hexdigest()
 
+def add_file_to_index(filename, document_root, writer):
+    file_basename = os.path.basename(filename)
+
+    filename_root = os.path.splitext(file_basename)[0]
+
+    with open(filename, 'r') as fp:
+        file_contents = fp.read()
+
+    file_hash = hash_file_contents(file_contents)
+
+    writer.add_document(
+        title = safe_unicode(filename_root),
+        content = safe_unicode(file_contents),
+        file_hash = safe_unicode(file_hash),
+        path = safe_unicode(
+            os.path.relpath(filename, document_root)))
+
+def remove_file_from_index(filename, document_root, writer):
+    writer.delete_by_term(
+        'path', safe_unicode(os.path.relpath(filename, document_root)))
+
+def markup_files_in_subtree(root):
+    for dirpath, dirnames, filenames in os.walk(root):
+        for filename in filenames:
+            extension = os.path.splitext(filename)[1]
+
+            if extension not in markup_file_suffixes:
+                continue
+            else:
+                yield os.path.join(dirpath, filename)
+
 def build_index(writer):
     document_root = os.path.expanduser(config.get(
             "markupserve", "document_root"))
 
-    for dirpath, dirnames, filenames in os.walk(document_root):
-        for filename in filenames:
-            filename_root, file_extension = os.path.splitext(filename)
+    for file_abspath in markup_files_in_subtree(document_root):
+        add_file_to_index(file_abspath, document_root, writer)
 
-            file_abspath = os.path.join(dirpath, filename)
+@route("/update_index")
+def update_index():
+    document_root = os.path.expanduser(config.get(
+            "markupserve", "document_root"))
 
-            if file_extension not in markup_file_suffixes:
-                continue
+    indexed_paths = set()
+    to_index = set()
 
-            with open(file_abspath, 'r') as fp:
-                file_contents = fp.read()
+    output = StringIO.StringIO()
 
-            file_hash = hash_file_contents(file_contents)
+    print "Starting!"
 
-            writer.add_document(
-                title = safe_unicode(filename_root),
-                content = safe_unicode(file_contents),
-                file_hash = safe_unicode(file_hash),
-                path = safe_unicode(
-                    os.path.relpath(file_abspath, document_root)))
+    with markupserve_index.searcher() as searcher:
+        writer = markupserve_index.writer()
+
+        # Loop over all fields in the index
+        for fields in searcher.all_stored_fields():
+            indexed_path = os.path.join(document_root, fields["path"])
+            indexed_paths.add(indexed_path)
+
+            if not os.path.exists(indexed_path):
+                # File was deleted since we last updated the index
+                print "Deleting '%s' from index" % (indexed_path)
+                remove_file_from_index(indexed_path, document_root, writer)
+            else:
+                # Check if file has been changed by hashing its contents
+                with open(indexed_path, 'r') as fp:
+                    file_hash = hash_file_contents(fp.read())
+
+                if file_hash != fields["file_hash"]:
+                    # File hash mismatch; delete from index and add to the list
+                    # of files to re-index
+                    print "MD5 hash mismatch for '%s': %s != %s" % (
+                        indexed_path, file_hash, fields["file_hash"])
+                    remove_file_from_index(indexed_path, document_root, writer)
+                    to_index.add(indexed_path)
+
+        # Add any path that has changed (or is not in the index) to the index
+        for file_abspath in markup_files_in_subtree(document_root):
+            if file_abspath in to_index:
+                print "Updating index for '%s'" % (file_abspath)
+                add_file_to_index(file_abspath, document_root, writer)
+            elif file_abspath not in indexed_paths:
+                print "Adding new file '%s' to index" % (file_abspath)
+                add_file_to_index(file_abspath, document_root, writer)
+
+        writer.commit()
+
+        print "Done!"
+        return output
 
 parser = argparse.ArgumentParser(
     description="serves a directory hierarchy of documents written in a "
