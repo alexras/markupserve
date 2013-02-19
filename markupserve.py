@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from bottle import run, debug, route, abort, redirect, request, static_file
-import StringIO
+from bottle import run, debug, route, abort, redirect, request, static_file, \
+    post, redirect
 import shlex
 import collections
 import whoosh
@@ -430,15 +430,13 @@ def build_index(writer):
     for file_abspath in markup_files_in_subtree(document_root):
         add_file_to_index(file_abspath, document_root, writer)
 
-@route("/update_index")
+@post("/update_index")
 def update_index():
     document_root = os.path.expanduser(config.get(
             "markupserve", "document_root"))
 
     indexed_paths = set()
     to_index = set()
-
-    output = StringIO.StringIO()
 
     print "Starting!"
 
@@ -479,7 +477,8 @@ def update_index():
         writer.commit()
 
         print "Done!"
-        return output
+
+        redirect('/')
 
 parser = argparse.ArgumentParser(
     description="serves a directory hierarchy of documents written in a "

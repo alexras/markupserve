@@ -12,6 +12,12 @@
 <h1>{{ path }}</h1>
 
 <p>
+<form name="update" action="/update_index" method="post">
+<input type="submit" value="Update Index" />
+</form>
+</p>
+
+<p>
 <form name="search" action="/search" method="get">
 <b>Search:</b> <input type="text" name="terms" /><input type="submit"/>
 </form>
