@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 
 from bottle import run, debug, route, abort, redirect, request, static_file
+import shlex
+import collections
+import whoosh
+from whoosh.fields import SchemaClass
+from whoosh import index
+from whoosh.qparser import QueryParser
 import ConfigParser
 import os
 import argparse
@@ -13,14 +19,37 @@ import re
 import pprint
 import itertools
 import datetime
+import hashlib
 
 DIR_CONFIG_FILE_NAME = ".markupserve_dir_config"
+FILE_READ_BLOCK_SIZE = 2**20
 
 config = ConfigParser.ConfigParser()
 
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader('templates'),
                                trim_blocks = True)
 markup_file_suffixes = set()
+
+markupserve_index = None
+
+class MarkupServeSchema(SchemaClass):
+    path = whoosh.fields.ID(stored = True)
+    title = whoosh.fields.TEXT(stored = True)
+    content = whoosh.fields.TEXT(
+        analyzer = (whoosh.analysis.StemmingAnalyzer()),
+        stored = True)
+    file_hash = whoosh.fields.ID(stored = True)
+
+# From http://code.activestate.com/recipes/
+# 466341-guaranteed-conversion-to-unicode-or-byte-string/
+def safe_unicode(obj, *args):
+    """ return the unicode representation of obj """
+    try:
+        return unicode(obj, *args)
+    except UnicodeDecodeError:
+        # obj is byte string
+        ascii_text = str(obj).encode('string_escape')
+        return unicode(ascii_text)
 
 def find_program(program):
     for path in os.environ["PATH"].split(os.pathsep):
@@ -235,13 +264,7 @@ def serve_static_file(filename):
 
     return static_file(filename, root=static_root)
 
-@route("/search")
-def search():
-    search_terms = request.GET.dict["terms"][0]
-
-    document_root = os.path.expanduser(config.get(
-            "markupserve", "document_root"))
-
+def grep_search(search_terms, document_root):
     command = shlex.split('grep -Hir "%s" %s' % (search_terms, document_root))
 
     grep_process = subprocess.Popen(command, stdout=subprocess.PIPE,
@@ -253,7 +276,7 @@ def search():
         abort(500, "'%s' failed with error %d: %s %s" % (
                 command, grep_process.returncode, output, error))
 
-    results = {}
+    results = collections.defaultdict(list)
 
     for match in output.split('\n'):
         if len(match) == 0:
@@ -267,13 +290,41 @@ def search():
             continue
 
         filename = os.path.relpath(filename, document_root)
+        results[filename].append(line_text)
 
-        if filename not in results:
-            results[filename] = []
+    return results
 
+def index_search(search_terms, document_root):
+    qp = QueryParser("content", schema = markupserve_index.schema)
+    query = qp.parse(safe_unicode(search_terms))
 
-        results[filename].append(line_text.decode("utf-8"))
+    results = collections.defaultdict(list)
 
+    split_terms = shlex.split(search_terms)
+
+    with markupserve_index.searcher() as searcher:
+        query_results = searcher.search(query, limit=None)
+
+        for result in query_results:
+            filename = result["path"].decode("utf-8")
+            results[filename].append(
+                result.highlights("content").decode("utf-8"))
+
+    return results
+
+@route("/search")
+def search():
+    search_terms = request.GET.dict["terms"][0]
+
+    document_root = os.path.expanduser(config.get(
+            "markupserve", "document_root"))
+
+    if markupserve_index is None:
+        search_function = grep_search
+    else:
+        search_function = index_search
+
+    results = search_function(search_terms, document_root)
     template = jinja_env.get_template("search.jinja")
     return template.render(terms = search_terms, results = results)
 
@@ -333,8 +384,36 @@ def view(path):
 
 @route("/")
 @route("/view/")
-def index():
+def view_index():
     return view("/")
+
+def hash_file_contents(contents):
+    return hashlib.md5(contents).hexdigest()
+
+def build_index(writer):
+    document_root = os.path.expanduser(config.get(
+            "markupserve", "document_root"))
+
+    for dirpath, dirnames, filenames in os.walk(document_root):
+        for filename in filenames:
+            filename_root, file_extension = os.path.splitext(filename)
+
+            file_abspath = os.path.join(dirpath, filename)
+
+            if file_extension not in markup_file_suffixes:
+                continue
+
+            with open(file_abspath, 'r') as fp:
+                file_contents = fp.read()
+
+            file_hash = hash_file_contents(file_contents)
+
+            writer.add_document(
+                title = safe_unicode(filename_root),
+                content = safe_unicode(file_contents),
+                file_hash = safe_unicode(file_hash),
+                path = safe_unicode(
+                    os.path.relpath(file_abspath, document_root)))
 
 parser = argparse.ArgumentParser(
     description="serves a directory hierarchy of documents written in a "
@@ -377,6 +456,31 @@ for suffix in config.get("markupserve", "markup_suffixes").split(','):
     markup_file_suffixes.add(suffix.strip())
 
 port = config.getint("markupserve", "port")
+
+# Load an index file from index path if one has been specified
+if config.has_option("markupserve", "index_root"):
+    index_root = os.path.expanduser(config.get("markupserve", "index_root"))
+
+    if os.path.isdir(index_root):
+        print "Loading index at '%s'" % (index_root)
+        # Index exists; load it
+        markupserve_index = index.open_dir(index_root)
+    else:
+        # Index doesn't exist; create it
+        print "Creating index at '%s'" % (index_root)
+
+        os.makedirs(index_root)
+
+        markupserve_index = index.create_in(
+            index_root, MarkupServeSchema)
+
+        print "Populating the index ..."
+        try:
+            writer = markupserve_index.writer()
+            build_index(writer)
+            writer.commit()
+        except whoosh.store.LockError, e:
+            print "Index is locked; aborting ..."
 
 debug(True)
 

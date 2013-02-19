@@ -12,6 +12,7 @@ MarkupServe requires the following Python libraries (all readily available throu
 
 * [bottle][bottle]
 * [jinja2][jinja]
+* [whoosh][whoosh]
 
 It also makes use of Python's `argparse` library; you may need to download a backport if you're running an older version of Python.
 
@@ -60,3 +61,4 @@ The icons used for file navigation are from [The Crystal Project][crystal-projec
 [crystal-project]: http://www.everaldo.com/crystal/
 [moritzz-iAWriterCSS]: https://github.com/moritzz/iAWriterCSS
 [ia-writer]: http://www.iawriter.com/
+[whoosh]: https://bitbucket.org/mchaput/whoosh/wiki/Home
