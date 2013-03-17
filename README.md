@@ -10,9 +10,9 @@ I've tested MarkupServe with Python 2.7.1 on Mac OS X 10.7. I'm pretty sure it w
 
 MarkupServe requires the following Python libraries (all readily available through PyPi):
 
-* [bottle][bottle]
-* [jinja2][jinja]
-* [whoosh][whoosh]
+* [bottle][bottle] (for serving)
+* [jinja2][jinja] (for templates)
+* [whoosh][whoosh] (for indexing)
 
 It also makes use of Python's `argparse` library; you may need to download a backport if you're running an older version of Python.
 
@@ -32,6 +32,7 @@ Here's an example minimal configuration file:
     port=8080
     converter_binary = multimarkdown
     markup_suffixes = .md, .text, .mkd, .markdown
+    index_root = ~/.markupserve_index
 
 You can hack the CSS for directory listings and converted files by editing `static/dir_style.css` and `static/file_style.css`, resp.
 

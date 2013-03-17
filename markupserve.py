@@ -291,7 +291,8 @@ def grep_search(search_terms, document_root):
             continue
 
         filename = os.path.relpath(filename, document_root)
-        results[filename].append(line_text)
+
+        results[filename].append(unicode(line_text, "utf8"))
 
     return results
 
@@ -439,6 +440,10 @@ def update_index():
     to_index = set()
 
     print "Starting!"
+
+    if markupserve_index is None:
+        print "No index found; aborting update"
+        redirect('/')
 
     with markupserve_index.searcher() as searcher:
         writer = markupserve_index.writer()
