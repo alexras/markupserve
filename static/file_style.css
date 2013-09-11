@@ -66,6 +66,12 @@ h1 {
     margin: 0 0 .1666em
 }
 
+.lastmod {
+    font-size: 90%;
+    color: #666666;
+    margin-bottom: 2em;
+}
+
 h2 {
     font-size: 175%;
     line-height: 1.28571429em;

@@ -27,8 +27,14 @@ FILE_READ_BLOCK_SIZE = 2**20
 
 config = ConfigParser.ConfigParser()
 
+def datetime_format(value, format="%m-%d-%Y %H:%M %p %Z"):
+    return time.strftime(format, time.localtime(value))
+
+
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader('templates'),
                                trim_blocks = True)
+jinja_env.filters['datetime'] = datetime_format
+
 markup_file_suffixes = set()
 
 markupserve_index = None
@@ -256,8 +262,9 @@ def view_file(path, root):
     # Get rid of any Unicode garbage that Jinja might choke on
     output = output.decode("utf-8")
 
-    return template.render(filename=filename, content=output,
-                           parent=parent_path, prev=prev_path, next=next_path)
+    return template.render(
+        filename=filename, last_modified=os.path.getmtime(path), content=output,
+        parent=parent_path, prev=prev_path, next=next_path)
 
 @route("/static/:filename")
 def serve_static_file(filename):
