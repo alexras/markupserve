@@ -1,7 +1,7 @@
 <html>
 <head>
 <title>MarkupServe - {{filename}}</title>
-<link rel=stylesheet href="/static/file_style.css" type="text/css" media=screen/>
+<link rel="stylesheet" href="/static/file_style.css" type="text/css" media="screen"/>
 </head>
 <body>
 {% if prev or next %}
@@ -19,6 +19,7 @@
 <div class="main">
 
 <h1>{{filename}}</h1>
+<h2 class="lastmod">Last Modified: {{ last_modified | datetime }}</h2>
 <p><a href="{{ parent }}">Parent Directory</a></p>
 
 {{content}}
