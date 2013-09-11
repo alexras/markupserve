@@ -561,4 +561,4 @@ if config.has_option("markupserve", "index_root"):
 
 debug(True)
 
-run(host='localhost', port=port)
+run(host='localhost', port=port, server="paste")

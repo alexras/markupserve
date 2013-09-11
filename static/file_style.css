@@ -1,6 +1,7 @@
 body {
     color: #222;
     font: normal normal 400 100%/1.5em georgia,serif;
+    width: 1024px;
 }
 
 div.main {
@@ -46,7 +47,7 @@ code {
 
 img {
     display: block;
-    max-width: 1024px;
+    max-width: 100%;
 }
 
 pre {
