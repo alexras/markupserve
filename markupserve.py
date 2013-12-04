@@ -204,8 +204,8 @@ def view_dir(path, parent_path, root, sorted_by, reverse):
                            page_uri = page_uri, sorted_by = sorted_by,
                            reverse = reverse)
 
-def view_file(path, root):
-    file_suffix = os.path.splitext(path)[1]
+def write_file(path, root):
+    file_name, file_suffix = os.path.splitext(path)
 
     parent_dir = os.path.abspath(os.path.join(path, os.pardir))
 
@@ -262,9 +262,16 @@ def view_file(path, root):
     # Get rid of any Unicode garbage that Jinja might choke on
     output = output.decode("utf-8")
 
-    return template.render(
+    dir_cache = os.path.join(parent_dir, '.cache')
+    filename_html = os.path.basename(file_name) + '.html'
+    file_path = os.path.join(dir_cache, filename_html)
+
+    if not os.path.exists(dir_cache):
+        os.mkdir(dir_cache)
+
+    return template.stream(
         filename=filename, last_modified=os.path.getmtime(path), content=output,
-        parent=parent_path, prev=prev_path, next=next_path)
+        parent=parent_path, prev=prev_path, next=next_path).dump(file_path, encoding="utf-8")
 
 @route("/static/:filename")
 def serve_static_file(filename):
@@ -390,7 +397,14 @@ def view(path):
         return view_dir(absolute_path, parent_path, document_root,
                         sorted_by, reverse)
     else:
-        return view_file(absolute_path, document_root)
+        dir_cache = os.path.join(document_root, '.cache')
+        file_name = os.path.splitext(os.path.basename(path))[0] + '.html'
+        cached_file = os.path.join(dir_cache, file_name)
+
+        if not os.path.exists(cached_file) or os.path.getmtime(cached_file) < os.path.getmtime(absolute_path):
+            write_file(absolute_path, document_root)
+
+        return static_file(file_name, root=dir_cache, mimetype='text/html')
 
 @route("/")
 @route("/view/")
