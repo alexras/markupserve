@@ -22,6 +22,9 @@ import itertools
 import datetime
 import hashlib
 
+# Interpret output from render script as UTF-8
+os.environ['PYTHONIOENCODING'] = 'utf_8'
+
 DIR_CONFIG_FILE_NAME = ".markupserve_dir_config"
 FILE_READ_BLOCK_SIZE = 2**20
 
