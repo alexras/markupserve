@@ -111,3 +111,7 @@ td,th {
     line-height: 1.71428571em;
     text-align: center
 }
+
+code.has-jax {
+    font: inherit; font-size: 100%; background: inherit; border: inherit;
+}
