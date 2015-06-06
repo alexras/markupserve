@@ -73,18 +73,21 @@ def last_modified_string(file_path):
             os.path.getmtime(file_path)))
 
 def file_path_to_server_path(path, root):
+    if path is None:
+        return '/view'
+
     return os.path.join("/view", os.path.relpath(path, root))
 
 def view_calendar(path, parent_path, root, config):
     files = os.listdir(path)
 
     try:
-        file_prefix = config.get("style", "file_prefix").strip('"')
+        file_prefix = config.get("style", "file_prefix").strip('"').strip("'")
     except ConfigParser.Error:
         file_prefix = ""
 
     try:
-        file_suffix = config.get("style", "file_suffix").strip('"')
+        file_suffix = config.get("style", "file_suffix").strip('"').strip("'")
     except ConfigParser.Error:
         file_suffix = ""
 
