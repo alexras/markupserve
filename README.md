@@ -13,6 +13,10 @@ and returns the resulting HTML.
 
 ## Installation
 
+**NOTE:**: Markupserve has only been tested with Python 2. Pull requests that
+  introduce Python 3 support are welcome, but I have no plans to introduce
+  Python 3 compatibility any time soon.
+
 Check out this repo and run
 
 `pip install -r requirements.txt`
