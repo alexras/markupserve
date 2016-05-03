@@ -11,6 +11,7 @@ from pygments.formatters import HtmlFormatter
 
 formatter = HtmlFormatter(style='friendly')
 
+
 # Create a custom renderer
 class HighlightingRenderer(m.HtmlRenderer, m.SmartyPants):
     def block_code(self, text, lang):

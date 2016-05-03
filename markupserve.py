@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from bottle import run, debug, route, abort, redirect, request, static_file, \
+from bottle import run, debug, route, abort, request, static_file, \
     post, redirect
 import shlex
 import collections
@@ -13,11 +13,9 @@ import os
 import argparse
 import jinja2
 import subprocess
-import shlex
 import time
 import calendar
 import re
-import pprint
 import itertools
 import datetime
 import hashlib
@@ -30,25 +28,28 @@ FILE_READ_BLOCK_SIZE = 2**20
 
 config = ConfigParser.ConfigParser()
 
+
 def datetime_format(value, format="%m-%d-%Y %H:%M %p %Z"):
     return time.strftime(format, time.localtime(value))
 
 
-jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader('templates'),
-                               trim_blocks = True)
+jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates'),
+                               trim_blocks=True)
 jinja_env.filters['datetime'] = datetime_format
 
 markup_file_suffixes = set()
 
 markupserve_index = None
 
+
 class MarkupServeSchema(SchemaClass):
-    path = whoosh.fields.ID(stored = True)
-    title = whoosh.fields.TEXT(stored = True)
+    path = whoosh.fields.ID(stored=True)
+    title = whoosh.fields.TEXT(stored=True)
     content = whoosh.fields.TEXT(
-        analyzer = (whoosh.analysis.StemmingAnalyzer()),
-        stored = True)
-    file_hash = whoosh.fields.ID(stored = True)
+        analyzer=(whoosh.analysis.StemmingAnalyzer()),
+        stored=True)
+    file_hash = whoosh.fields.ID(stored=True)
+
 
 # From http://code.activestate.com/recipes/
 # 466341-guaranteed-conversion-to-unicode-or-byte-string/
@@ -61,6 +62,7 @@ def safe_unicode(obj, *args):
         ascii_text = str(obj).encode('string_escape')
         return unicode(ascii_text)
 
+
 def find_program(program):
     for path in os.environ["PATH"].split(os.pathsep):
         executable = os.path.join(path, program)
@@ -68,15 +70,18 @@ def find_program(program):
             return os.path.abspath(executable)
     return None
 
+
 def last_modified_string(file_path):
     return time.strftime("%Y/%m/%d %I:%M:%S %p", time.localtime(
-            os.path.getmtime(file_path)))
+        os.path.getmtime(file_path)))
+
 
 def file_path_to_server_path(path, root):
     if path is None:
         return '/view'
 
     return os.path.join("/view", os.path.relpath(path, root))
+
 
 def view_calendar(path, parent_path, root, config):
     files = os.listdir(path)
@@ -158,10 +163,11 @@ def view_calendar(path, parent_path, root, config):
     template = jinja_env.get_template("calendar.jinja")
 
     return template.render(
-        calendars = calendars,
-        month_names = calendar.month_name,
-        path = path,
-        parent_path = file_path_to_server_path(parent_path, root))
+        calendars=calendars,
+        month_names=calendar.month_name,
+        path=path,
+        parent_path=file_path_to_server_path(parent_path, root))
+
 
 def view_dir(path, parent_path, root, sorted_by, reverse):
     files = os.listdir(path)
@@ -190,14 +196,14 @@ def view_dir(path, parent_path, root, sorted_by, reverse):
         listable_files.append(file_info)
 
     if sorted_by is not None:
-        listable_files.sort(key=lambda x: x[sorted_by], reverse = reverse)
+        listable_files.sort(key=lambda x: x[sorted_by], reverse=reverse)
 
-    if parent_path != None:
+    if parent_path is not None:
         parent_path_info = {
-            "name" : "Parent Directory",
-            "link" : file_path_to_server_path(parent_path, root),
-            "last_modified" : last_modified_string(parent_path),
-            "icon" : "/static/up.png"
+            "name": "Parent Directory",
+            "link": file_path_to_server_path(parent_path, root),
+            "last_modified": last_modified_string(parent_path),
+            "icon": "/static/up.png"
             }
 
         listable_files.insert(0, parent_path_info)
@@ -206,9 +212,10 @@ def view_dir(path, parent_path, root, sorted_by, reverse):
 
     page_uri = file_path_to_server_path(path, root)
 
-    return template.render(files = listable_files, path = path,
-                           page_uri = page_uri, sorted_by = sorted_by,
-                           reverse = reverse)
+    return template.render(files=listable_files, path=path,
+                           page_uri=page_uri, sorted_by=sorted_by,
+                           reverse=reverse)
+
 
 def view_file(path, root):
     file_suffix = os.path.splitext(path)[1]
@@ -225,9 +232,9 @@ def view_file(path, root):
 
     def make_path_struct(filename):
         path_dict = {
-            "name" : os.path.splitext(filename)[0],
-            "link" : '/'.join(("/view", os.path.relpath(parent_dir, root),
-                               filename))
+            "name": os.path.splitext(filename)[0],
+            "link": '/'.join(("/view", os.path.relpath(parent_dir, root),
+                              filename))
             }
 
         return path_dict
@@ -246,7 +253,7 @@ def view_file(path, root):
         return static_file(path, root="/")
 
     converter_bin = os.path.abspath(config.get(
-            "markupserve", "converter_binary"))
+        "markupserve", "converter_binary"))
 
     command = shlex.split('%s "%s"' % (converter_bin, path))
 
@@ -272,11 +279,13 @@ def view_file(path, root):
         filename=filename, last_modified=os.path.getmtime(path), content=output,
         parent=parent_path, prev=prev_path, next=next_path)
 
+
 @route("/static/:filename")
 def serve_static_file(filename):
     static_root = os.path.join(os.path.dirname(__file__), "static")
 
     return static_file(filename, root=static_root)
+
 
 def grep_search(search_terms, document_root):
     command = shlex.split('grep -Hir "%s" %s' % (search_terms, document_root))
@@ -286,9 +295,9 @@ def grep_search(search_terms, document_root):
 
     (output, error) = grep_process.communicate()
 
-    if grep_process.returncode not in [0,1]:
+    if grep_process.returncode not in [0, 1]:
         abort(500, "'%s' failed with error %d: %s %s" % (
-                command, grep_process.returncode, output, error))
+            command, grep_process.returncode, output, error))
 
     results = collections.defaultdict(list)
 
@@ -309,13 +318,12 @@ def grep_search(search_terms, document_root):
 
     return results
 
+
 def index_search(search_terms, document_root):
-    qp = QueryParser("content", schema = markupserve_index.schema)
+    qp = QueryParser("content", schema=markupserve_index.schema)
     query = qp.parse(safe_unicode(search_terms))
 
     results = collections.defaultdict(list)
-
-    split_terms = shlex.split(search_terms)
 
     with markupserve_index.searcher() as searcher:
         query_results = searcher.search(query, limit=None)
@@ -328,12 +336,13 @@ def index_search(search_terms, document_root):
 
     return results
 
+
 @route("/search")
 def search():
     search_terms = request.GET.dict["terms"][0]
 
     document_root = os.path.expanduser(config.get(
-            "markupserve", "document_root"))
+        "markupserve", "document_root"))
 
     if markupserve_index is None:
         search_function = grep_search
@@ -342,7 +351,8 @@ def search():
 
     results = search_function(search_terms, document_root)
     template = jinja_env.get_template("search.jinja")
-    return template.render(terms = search_terms, results = results)
+    return template.render(terms=search_terms, results=results)
+
 
 @route("/view/:path#.+#")
 def view(path):
@@ -358,8 +368,7 @@ def view(path):
     reverse = "reverse" in request.GET and (
         int(request.GET.dict["reverse"][0]) == 1)
 
-    document_root = os.path.expanduser(config.get(
-            "markupserve", "document_root"))
+    document_root = os.path.expanduser(config.get("markupserve", "document_root"))
 
     absolute_path = os.path.abspath(document_root + "/" + path)
 
@@ -368,7 +377,7 @@ def view(path):
 
     if os.path.isdir(absolute_path):
         if path != "/":
-            parent_path = os.path.abspath(absolute_path + "/" +  os.pardir)
+            parent_path = os.path.abspath(absolute_path + "/" + os.pardir)
         else:
             parent_path = None
 
@@ -385,7 +394,7 @@ def view(path):
 
             try:
                 dir_style = dir_config.get("style", "name")
-            except ConfigParser.Error, e:
+            except ConfigParser.Error:
                 abort(500, "Can't find option ('style', 'name') in directory "
                       "config")
 
@@ -398,13 +407,16 @@ def view(path):
     else:
         return view_file(absolute_path, document_root)
 
+
 @route("/")
 @route("/view/")
 def view_index():
     return view("/")
 
+
 def hash_file_contents(contents):
     return hashlib.md5(contents).hexdigest()
+
 
 def add_file_to_index(filename, document_root, writer):
     file_basename = os.path.basename(filename)
@@ -417,15 +429,17 @@ def add_file_to_index(filename, document_root, writer):
     file_hash = hash_file_contents(file_contents)
 
     writer.add_document(
-        title = safe_unicode(filename_root),
-        content = safe_unicode(file_contents),
-        file_hash = safe_unicode(file_hash),
-        path = safe_unicode(
+        title=safe_unicode(filename_root),
+        content=safe_unicode(file_contents),
+        file_hash=safe_unicode(file_hash),
+        path=safe_unicode(
             os.path.relpath(filename, document_root)))
+
 
 def remove_file_from_index(filename, document_root, writer):
     writer.delete_by_term(
         'path', safe_unicode(os.path.relpath(filename, document_root)))
+
 
 def markup_files_in_subtree(root):
     for dirpath, dirnames, filenames in os.walk(root):
@@ -437,17 +451,19 @@ def markup_files_in_subtree(root):
             else:
                 yield os.path.join(dirpath, filename)
 
+
 def build_index(writer):
     document_root = os.path.expanduser(config.get(
-            "markupserve", "document_root"))
+        "markupserve", "document_root"))
 
     for file_abspath in markup_files_in_subtree(document_root):
         add_file_to_index(file_abspath, document_root, writer)
 
+
 @post("/update_index")
 def update_index():
     document_root = os.path.expanduser(config.get(
-            "markupserve", "document_root"))
+        "markupserve", "document_root"))
 
     indexed_paths = set()
     to_index = set()
@@ -513,11 +529,14 @@ if not os.path.exists(args.config):
 with open(args.config, 'r') as fp:
     config.readfp(fp)
 
-if (not config.has_section("markupserve") or
-    not config.has_option("markupserve", "document_root") or
-    not config.has_option("markupserve", "port") or
-    not config.has_option("markupserve", "converter_binary") or
-    not config.has_option("markupserve", "markup_suffixes")):
+required_config_present = (
+    config.has_section("markupserve") and
+    config.has_option("markupserve", "document_root") and
+    config.has_option("markupserve", "port") and
+    config.has_option("markupserve", "converter_binary") and
+    config.has_option("markupserve", "markup_suffixes"))
+
+if not required_config_present:
     exit("MarkupServe's configuration requires a [markupserve] section "
          "with options document_root, port, converter_binary and "
          "markup_suffixes defined")
@@ -529,7 +548,7 @@ converter_binary = config.get("markupserve", "converter_binary")
 if not os.path.exists(converter_binary):
     converter_binary = find_program(converter_binary)
 
-    if converter_binary != None:
+    if converter_binary is not None:
         config.set("markupserve", "converter_binary", converter_binary)
     else:
         exit("Can't find converter binary '%s'" % (converter_binary))
