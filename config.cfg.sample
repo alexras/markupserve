@@ -1,6 +1,12 @@
 [markupserve]
 document_root = ~/Documents
 port=8080
-converter_binary = ./renderer.py
-markup_suffixes = .md, .text, .mkd, .markdown
 index_root = ~/.markupserve_index
+
+[format:markdown]
+suffixes = .md, .text, .mkd, .markdown
+binary = ./md-renderer.py
+
+[format:org-mode]
+suffixes = .org
+binary = ./org-renderer.rb

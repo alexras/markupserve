@@ -27,40 +27,51 @@ and [whoosh][whoosh] for indexing and search.
 If you're running an older version of Python, you may also need to install
 `argparse`.
 
-MarkupServe comes with a renderer (`renderer.py`) that does Markdown rendering
+MarkupServe comes with a renderer (`md-renderer.py`) that does Markdown rendering
 and syntax highlighting for [GitHub-Flavored Markdown][gfm]-style fenced code
 blocks. To use the renderer, install its dependencies by running
 
 `pip install -r requirements.renderer.txt`
 
-The default renderer uses [misaka][misaka] for parsing Markdown,
-[houdini.py][houdini] for HTML-escaping text and [Pygments][pygments] for
-syntax highlighting.
+It uses [misaka][misaka] for parsing Markdown, [houdini.py][houdini] for
+HTML-escaping text and [Pygments][pygments] for syntax highlighting.
 
 ## Configuration
 
 MarkupServe reads its configuration from a config file (it looks for
-`config.cfg` by default). It requires that you define the following parameters:
+`config.cfg` by default). It requires that you define the following parameters
+in the `[markupserve]` section:
 
 * `document_root`: the root directory from which to serve documents
 * `port`: the port on which the server itself runs
-* `converter_binary`: the converter program used to convert markup
-  documents. This can be specified as a relative or absolute path, or you can
-  give a binary in your `PATH`
-* `markup_suffixes`: a comma-delimited list of the file suffixes that
-  MarkupServe should interpret as the suffixes of files written in the target
-  markup language
 * `index_root`: the root directory where MarkupServe's search indices will be
   stored.
 
-Here's an example minimal configuration file (also in `config.cfg.sample`):
+Sections whose names begin with `format:` define markup formats that can be
+converted. Each of these sections requires the following parameters:
+
+* `binary`: the converter program used to convert markup documents. This can be
+  specified as a relative or absolute path, or you can give a binary in your
+  `PATH`
+* `suffixes`: a comma-delimited list of the file suffixes that MarkupServe
+  should interpret as the suffixes of files written in the target markup
+  language
+
+Here's an example minimal configuration file (also in `config.cfg.sample`) that
+defines two formatters for Markdown and `org-mode`:
 
     [markupserve]
     document_root = ~/Documents
     port=8080
-    converter_binary = ./renderer.py
-    markup_suffixes = .md, .text, .mkd, .markdown
     index_root = ~/.markupserve_index
+
+    [format:markdown]
+    suffixes = .md, .text, .mkd, .markdown
+    binary = ./md-renderer.py
+
+    [format:org-mode]
+    suffixes = .org
+    binary = ./org-renderer.rb
 
 You can hack the CSS for files and directory listings by editing
 `static/file_style.css` and `static/dir_style.css`, resp.
