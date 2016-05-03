@@ -38,7 +38,8 @@ jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader('templates'),
 jinja_env.filters['datetime'] = datetime_format
 
 markup_file_suffixes = set()
-
+markup_file_converter_binaries = {}
+port = None
 markupserve_index = None
 
 
@@ -252,8 +253,7 @@ def view_file(path, root):
     if file_suffix not in markup_file_suffixes:
         return static_file(path, root="/")
 
-    converter_bin = os.path.abspath(config.get(
-        "markupserve", "converter_binary"))
+    converter_bin = markup_file_converter_binaries[file_suffix]
 
     command = shlex.split('%s "%s"' % (converter_bin, path))
 
@@ -514,6 +514,95 @@ def update_index():
 
         redirect('/')
 
+
+def add_converter(converter_binary, comma_delimited_suffix_list):
+    suffixes = comma_delimited_suffix_list.split(',')
+    suffixes = [x.strip() for x in suffixes]
+    # Don't add a converter for a format that's already been covered
+    suffixes = filter(lambda x: x not in markup_file_suffixes, suffixes)
+
+    if len(suffixes) == 0:
+        return
+
+    # Rewrite the location of the converter binary if its exact location isn't given
+    # but it's in our PATH
+    if not os.path.exists(converter_binary):
+        resolved_binary = find_program(converter_binary)
+
+        if resolved_binary is not None:
+            converter_binary = resolved_binary
+        else:
+            exit("Can't find converter binary '%s'" % (converter_binary))
+
+    print "Adding converter '%s' for formats %s" % (converter_binary, suffixes)
+
+    for suffix in suffixes:
+        markup_file_suffixes.add(suffix)
+        markup_file_converter_binaries[suffix] = converter_binary
+
+
+def parse_config(config):
+    global port
+
+    required_config_present = (
+        config.has_section("markupserve") and
+        config.has_option("markupserve", "document_root") and
+        config.has_option("markupserve", "port"))
+
+    if not required_config_present:
+        exit("MarkupServe's configuration requires a [markupserve] section "
+             "with options 'document_root' and 'port' defined")
+
+    # Legacy support: install markup suffixes and converter
+    if config.has_option("markupserve", "markup_suffixes") and \
+       config.has_option("markupserve", "converter_binary"):
+
+        add_converter(config.get("markupserve", "converter_binary"),
+                      config.get("markupserve", "markup_suffixes"))
+
+    # Add a converter for each config section available
+    for section in config.sections():
+        if section.startswith("format:"):
+            formatter_config_present = (
+                config.has_option(section, "suffixes") and
+                config.has_option(section, "binary"))
+
+            if not formatter_config_present:
+                exit("Section '%s' must define both 'binary' and 'suffixes' options" % (section))
+
+            add_converter(config.get(section, 'binary'), config.get(section, 'suffixes'))
+
+    if len(markup_file_suffixes) == 0:
+        exit("Must supply at least one file suffix to parse in config")
+
+    port = config.getint("markupserve", "port")
+
+    # Load an index file from index path if one has been specified
+    if config.has_option("markupserve", "index_root"):
+        index_root = os.path.expanduser(config.get("markupserve", "index_root"))
+
+        if os.path.isdir(index_root):
+            print "Loading index at '%s'" % (index_root)
+            # Index exists; load it
+            markupserve_index = index.open_dir(index_root)
+        else:
+            # Index doesn't exist; create it
+            print "Creating index at '%s'" % (index_root)
+
+            os.makedirs(index_root)
+
+            markupserve_index = index.create_in(
+                index_root, MarkupServeSchema)
+
+            print "Populating the index ..."
+            try:
+                writer = markupserve_index.writer()
+                build_index(writer)
+                writer.commit()
+            except whoosh.store.LockError:
+                print "Index is locked; aborting ..."
+
+
 parser = argparse.ArgumentParser(
     description="serves a directory hierarchy of documents written in a "
     "markup language using on-the-fly conversion")
@@ -529,60 +618,7 @@ if not os.path.exists(args.config):
 with open(args.config, 'r') as fp:
     config.readfp(fp)
 
-required_config_present = (
-    config.has_section("markupserve") and
-    config.has_option("markupserve", "document_root") and
-    config.has_option("markupserve", "port") and
-    config.has_option("markupserve", "converter_binary") and
-    config.has_option("markupserve", "markup_suffixes"))
-
-if not required_config_present:
-    exit("MarkupServe's configuration requires a [markupserve] section "
-         "with options document_root, port, converter_binary and "
-         "markup_suffixes defined")
-
-# Rewrite the location of the converter binary if its exact location isn't given
-# but it's in our PATH
-converter_binary = config.get("markupserve", "converter_binary")
-
-if not os.path.exists(converter_binary):
-    converter_binary = find_program(converter_binary)
-
-    if converter_binary is not None:
-        config.set("markupserve", "converter_binary", converter_binary)
-    else:
-        exit("Can't find converter binary '%s'" % (converter_binary))
-
-# Populate valid markup file suffixes
-for suffix in config.get("markupserve", "markup_suffixes").split(','):
-    markup_file_suffixes.add(suffix.strip())
-
-port = config.getint("markupserve", "port")
-
-# Load an index file from index path if one has been specified
-if config.has_option("markupserve", "index_root"):
-    index_root = os.path.expanduser(config.get("markupserve", "index_root"))
-
-    if os.path.isdir(index_root):
-        print "Loading index at '%s'" % (index_root)
-        # Index exists; load it
-        markupserve_index = index.open_dir(index_root)
-    else:
-        # Index doesn't exist; create it
-        print "Creating index at '%s'" % (index_root)
-
-        os.makedirs(index_root)
-
-        markupserve_index = index.create_in(
-            index_root, MarkupServeSchema)
-
-        print "Populating the index ..."
-        try:
-            writer = markupserve_index.writer()
-            build_index(writer)
-            writer.commit()
-        except whoosh.store.LockError, e:
-            print "Index is locked; aborting ..."
+parse_config(config)
 
 debug(True)
 
