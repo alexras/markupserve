@@ -8,7 +8,7 @@ import whoosh
 from whoosh.fields import SchemaClass
 from whoosh import index
 from whoosh.qparser import QueryParser
-import ConfigParser
+import configparser
 import os
 import argparse
 import jinja2
@@ -26,7 +26,7 @@ os.environ['PYTHONIOENCODING'] = 'utf_8'
 DIR_CONFIG_FILE_NAME = ".markupserve_dir_config"
 FILE_READ_BLOCK_SIZE = 2**20
 
-config = ConfigParser.ConfigParser()
+config = configparser.ConfigParser()
 
 
 def datetime_format(value, format="%m-%d-%Y %H:%M %p %Z"):
@@ -57,11 +57,11 @@ class MarkupServeSchema(SchemaClass):
 def safe_unicode(obj, *args):
     """ return the unicode representation of obj """
     try:
-        return unicode(obj, *args)
+        return str(obj, *args)
     except UnicodeDecodeError:
         # obj is byte string
         ascii_text = str(obj).encode('string_escape')
-        return unicode(ascii_text)
+        return str(ascii_text)
 
 
 def find_program(program):
@@ -89,12 +89,12 @@ def view_calendar(path, parent_path, root, config):
 
     try:
         file_prefix = config.get("style", "file_prefix").strip('"').strip("'")
-    except ConfigParser.Error:
+    except configparser.Error:
         file_prefix = ""
 
     try:
         file_suffix = config.get("style", "file_suffix").strip('"').strip("'")
-    except ConfigParser.Error:
+    except configparser.Error:
         file_suffix = ""
 
     filename_regex = re.compile("%s([0-9]+)-([0-9]+)-([0-9]+)%s" %
@@ -112,12 +112,12 @@ def view_calendar(path, parent_path, root, config):
 
     files_by_month = {}
 
-    for filename, date in itertools.izip(files, file_dates):
+    for filename, date in zip(files, file_dates):
         if date is None:
             continue
 
         file_path = os.path.join(path, filename)
-        year, month, day = map(int, date)
+        year, month, day = list(map(int, date))
         date = datetime.date(year, month, day)
 
         year_and_month = (year, month)
@@ -133,7 +133,7 @@ def view_calendar(path, parent_path, root, config):
     # Render weeks beginning on Sunday
     cal.setfirstweekday(6)
 
-    for year_and_month, dates in files_by_month.items():
+    for year_and_month, dates in list(files_by_month.items()):
         year, month = year_and_month
 
         if year not in calendars:
@@ -223,9 +223,7 @@ def view_file(path, root):
 
     parent_dir = os.path.abspath(os.path.join(path, os.pardir))
 
-    files_in_dir = filter(
-        lambda x: os.path.splitext(x)[1] != ".resources" and x[0] != '.',
-        os.listdir(parent_dir))
+    files_in_dir = [x for x in os.listdir(parent_dir) if os.path.splitext(x)[1] != ".resources" and x[0] != '.']
 
     files_in_dir.sort()
 
@@ -314,7 +312,7 @@ def grep_search(search_terms, document_root):
 
         filename = os.path.relpath(filename, document_root)
 
-        results[filename].append(unicode(line_text, "utf8"))
+        results[filename].append(str(line_text, "utf8"))
 
     return results
 
@@ -385,7 +383,7 @@ def view(path):
                                                    DIR_CONFIG_FILE_NAME)
 
         if os.path.exists(markupserve_dir_config_file):
-            dir_config = ConfigParser.ConfigParser()
+            dir_config = configparser.ConfigParser()
             parsed_files = dir_config.read([markupserve_dir_config_file])
 
             if len(parsed_files) != 1:
@@ -394,7 +392,7 @@ def view(path):
 
             try:
                 dir_style = dir_config.get("style", "name")
-            except ConfigParser.Error:
+            except configparser.Error:
                 abort(500, "Can't find option ('style', 'name') in directory "
                       "config")
 
@@ -468,10 +466,10 @@ def update_index():
     indexed_paths = set()
     to_index = set()
 
-    print "Starting!"
+    print("Starting!")
 
     if markupserve_index is None:
-        print "No index found; aborting update"
+        print("No index found; aborting update")
         redirect('/')
 
     with markupserve_index.searcher() as searcher:
@@ -484,7 +482,7 @@ def update_index():
 
             if not os.path.exists(indexed_path):
                 # File was deleted since we last updated the index
-                print "Deleting '%s' from index" % (indexed_path)
+                print("Deleting '%s' from index" % (indexed_path))
                 remove_file_from_index(indexed_path, document_root, writer)
             else:
                 # Check if file has been changed by hashing its contents
@@ -494,23 +492,23 @@ def update_index():
                 if file_hash != fields["file_hash"]:
                     # File hash mismatch; delete from index and add to the list
                     # of files to re-index
-                    print "MD5 hash mismatch for '%s': %s != %s" % (
-                        indexed_path, file_hash, fields["file_hash"])
+                    print("MD5 hash mismatch for '%s': %s != %s" % (
+                        indexed_path, file_hash, fields["file_hash"]))
                     remove_file_from_index(indexed_path, document_root, writer)
                     to_index.add(indexed_path)
 
         # Add any path that has changed (or is not in the index) to the index
         for file_abspath in markup_files_in_subtree(document_root):
             if file_abspath in to_index:
-                print "Updating index for '%s'" % (file_abspath)
+                print("Updating index for '%s'" % (file_abspath))
                 add_file_to_index(file_abspath, document_root, writer)
             elif file_abspath not in indexed_paths:
-                print "Adding new file '%s' to index" % (file_abspath)
+                print("Adding new file '%s' to index" % (file_abspath))
                 add_file_to_index(file_abspath, document_root, writer)
 
         writer.commit()
 
-        print "Done!"
+        print("Done!")
 
         redirect('/')
 
@@ -519,7 +517,7 @@ def add_converter(converter_binary, comma_delimited_suffix_list):
     suffixes = comma_delimited_suffix_list.split(',')
     suffixes = [x.strip() for x in suffixes]
     # Don't add a converter for a format that's already been covered
-    suffixes = filter(lambda x: x not in markup_file_suffixes, suffixes)
+    suffixes = [x for x in suffixes if x not in markup_file_suffixes]
 
     if len(suffixes) == 0:
         return
@@ -534,7 +532,7 @@ def add_converter(converter_binary, comma_delimited_suffix_list):
         else:
             exit("Can't find converter binary '%s'" % (converter_binary))
 
-    print "Adding converter '%s' for formats %s" % (converter_binary, suffixes)
+    print("Adding converter '%s' for formats %s" % (converter_binary, suffixes))
 
     for suffix in suffixes:
         markup_file_suffixes.add(suffix)
@@ -582,25 +580,25 @@ def parse_config(config):
         index_root = os.path.expanduser(config.get("markupserve", "index_root"))
 
         if os.path.isdir(index_root):
-            print "Loading index at '%s'" % (index_root)
+            print("Loading index at '%s'" % (index_root))
             # Index exists; load it
             markupserve_index = index.open_dir(index_root)
         else:
             # Index doesn't exist; create it
-            print "Creating index at '%s'" % (index_root)
+            print("Creating index at '%s'" % (index_root))
 
             os.makedirs(index_root)
 
             markupserve_index = index.create_in(
                 index_root, MarkupServeSchema)
 
-            print "Populating the index ..."
+            print("Populating the index ...")
             try:
                 writer = markupserve_index.writer()
                 build_index(writer)
                 writer.commit()
             except whoosh.store.LockError:
-                print "Index is locked; aborting ..."
+                print("Index is locked; aborting ...")
 
 
 parser = argparse.ArgumentParser(
@@ -622,4 +620,6 @@ parse_config(config)
 
 debug(True)
 
-run(host='localhost', port=port, server="paste")
+run(host=config.get('markupserve', 'hostname', fallback='localhost'),
+    port=port,
+    server="paste")

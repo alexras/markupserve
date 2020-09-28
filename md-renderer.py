@@ -13,8 +13,10 @@ formatter = HtmlFormatter(style='friendly')
 
 
 # Create a custom renderer
-class HighlightingRenderer(m.HtmlRenderer, m.SmartyPants):
+class HighlightingRenderer(m.HtmlRenderer):
     def block_code(self, text, lang):
+        text = m.smartypants(text)
+
         output = ''
 
         if not lang:
@@ -37,13 +39,12 @@ renderer = HighlightingRenderer(flags=m.HTML_HARD_WRAP | m.HTML_USE_XHTML)
 md = m.Markdown(renderer,
                 extensions=m.EXT_FENCED_CODE | m.EXT_NO_INTRA_EMPHASIS |
                 m.EXT_TABLES | m.EXT_NO_INTRA_EMPHASIS | m.EXT_AUTOLINK |
-                m.EXT_STRIKETHROUGH | m.EXT_LAX_HTML_BLOCKS | m.EXT_SUPERSCRIPT)
+                m.EXT_STRIKETHROUGH | m.EXT_SUPERSCRIPT)
 
 with open(sys.argv[1], 'r') as fp:
     file_contents = fp.read()
-    file_contents = file_contents.decode('utf-8')
     file_contents = unicodedata.normalize('NFKD', file_contents)
 
-    print('<style>\n' + formatter.get_style_defs() + '</style>')
+    print(('<style>\n' + formatter.get_style_defs() + '</style>'))
 
-    print(md.render(file_contents))
+    print((md(file_contents)))
