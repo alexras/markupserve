@@ -1,4 +1,4 @@
 bottle==0.12.18
 whoosh==2.7.4
-Jinja2==2.11.2
+Jinja2==2.11.3
 paste==3.4.6
